@@ -10,8 +10,8 @@
 
 (defn load-into-file-buffer [file]
   (let [reader (js/FileReader.) buffer-source (.createBufferSource audio-context)]
-    (set! (.-onload reader) (fn [array-buffer]
-                              (.decodeAudioData audio-context array-buffer (fn [audio-data]
+    (set! (.-onload reader) (fn [e]
+                              (.decodeAudioData audio-context (.. reader -result) (fn [audio-data]
                                                                              (set! (.-source buffer-source) audio-data)
                                                                              (.connect buffer-source (.. audio-context -destination))
                                                                              (add-file-buffer! buffer-source)
