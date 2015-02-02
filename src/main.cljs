@@ -4,19 +4,21 @@
 
 (defonce app-state (atom {:files []}))
 
-(def audio-context (js/AudioContext.))
+(defonce audio-context (js/AudioContext.))
 
-(defn add-file-buffer! [buffer] (swap! app-state update-in [:files] conj buffer))
+(defn add-sample! [sample] (swap! app-state update-in [:files] conj sample))
+
+(defn play [data]
+  (let [buffer-source (.createBufferSource audio-context)]
+    (set! (.-buffer buffer-source) data)
+    (.connect buffer-source (.. audio-context -destination)
+    (.start buffer-source 0))))
 
 (defn load-into-file-buffer [file]
-  (let [reader (js/FileReader.) buffer-source (.createBufferSource audio-context)]
+  (let [reader (js/FileReader.)]
     (set! (.-onload reader) (fn [e]
                               (.decodeAudioData audio-context (.. reader -result) (fn [audio-data]
-                                                                             (set! (.-source buffer-source) audio-data)
-                                                                             (.connect buffer-source (.. audio-context -destination))
-                                                                             (add-file-buffer! buffer-source)
-                                                                             ))))
-
+                                                                                    (add-sample! {:data audio-data :name (.. file -name) })))))
     (.readAsArrayBuffer reader file)))
 
 (defn drop-zone [_]
@@ -41,7 +43,9 @@
   (reify
     om/IRender
       (render [_]
-        (dom/li nil file))))
+        (dom/li #js {:onClick (fn [_]
+                                (play (:data file)))}
+                (:name file)))))
 
 (defn file-list [files parent]
   (reify
