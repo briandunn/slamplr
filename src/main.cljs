@@ -32,7 +32,7 @@
                                 (.stopPropagation e)
                                 (let [files (.. e -dataTransfer -files)]
                                   (loop [i 0]
-                                    (if (< i (.. files -length))
+                                    (when (< i (.. files -length))
                                       (load-into-file-buffer (.item files i))
                                       (recur (inc i))))))
                       :onDragOver (fn [e] (.preventDefault e) (.stopPropagation e))
