@@ -3,8 +3,21 @@
                [om.dom :as dom :include-macros true]))
 
 (defonce app-state (atom {:files []}))
-(defn load-files [files]
-  (swap! app-state update-in [:files] into (map (fn [file] (.. file -name) ) files)))
+
+(def audio-context (js/AudioContext.))
+
+(defn add-file-buffer! [buffer] (swap! app-state update-in [:files] conj buffer))
+
+(defn load-into-file-buffer [file]
+  (let [reader (js/FileReader.) buffer-source (.createBufferSource audio-context)]
+    (set! (.-onload reader) (fn [array-buffer]
+                              (.decodeAudioData audio-context array-buffer (fn [audio-data]
+                                                                             (set! (.-source buffer-source) audio-data)
+                                                                             (.connect buffer-source (.. audio-context -destination))
+                                                                             (add-file-buffer! buffer-source)
+                                                                             ))))
+
+    (.readAsArrayBuffer reader file)))
 
 (defn drop-zone [_]
   (reify
@@ -15,9 +28,11 @@
                       :onDrop (fn [e]
                                 (.preventDefault e)
                                 (.stopPropagation e)
-                                (load-files (let [files (.. e -dataTransfer -files)]
-                                              (map #(.item files %) (range (.. files -length)))
-                                              )))
+                                (let [files (.. e -dataTransfer -files)]
+                                  (loop [i 0]
+                                    (if (< i (.. files -length))
+                                      (load-into-file-buffer (.item files i))
+                                      (recur (inc i))))))
                       :onDragOver (fn [e] (.preventDefault e) (.stopPropagation e))
                       :onDragEnter (fn [e] (.preventDefault e) (.stopPropagation e))
                       } "drop files here"))))
@@ -40,8 +55,7 @@
       (render [_]
         (dom/main nil
           (om/build drop-zone nil)
-          (om/build file-list (:files state))
-        ))))
+          (om/build file-list (:files state))))))
 
 (om/root root app-state
   {:target (. js/document (getElementById  "app"))})
