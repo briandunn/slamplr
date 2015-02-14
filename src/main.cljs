@@ -76,10 +76,15 @@
 
 (defn repaint
   [ctx pcm-data]
-  (let [scale (fn [pts] (map (fn [i y] [(* (/ 1000 (- (count pts) 1)) i) (+ (* y 50) 50)]) (range) pts))]
+  (let [
+        points (float32array->seq pcm-data)
+        x-step (/ (.. ctx -canvas -width) (- (count points) 1))
+        y-scale (/ (.. ctx -canvas -height) 2)
+        scaled-points (map (fn [i y]
+                        [(* x-step i) (+ (* y y-scale) y-scale)]) (range) points)]
     (.beginPath ctx)
-    (.moveTo ctx 0 50)
-    (doseq [[x y] (scale (float32array->seq pcm-data))]
+    (.moveTo ctx 0 y-scale)
+    (doseq [[x y] scaled-points]
       (.lineTo ctx x y))
     (.stroke ctx)))
 
