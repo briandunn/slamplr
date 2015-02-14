@@ -98,7 +98,7 @@
       (render [_]
         (dom/li #js {:onClick (fn [_]
                                 (play (:data file)))}
-                (:name file)
+                (dom/h1 nil (:name file))
                 (om/build waveform (:analysis file))))))
 
 (defn file-list [files parent]

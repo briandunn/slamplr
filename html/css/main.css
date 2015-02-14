@@ -1,4 +1,27 @@
 #drop-zone {
-	padding: 1em;
-	border: 1px solid blue;
+  padding: 1em;
+  border: 1px solid blue;
+}
+
+#files {
+  padding: 0px;
+}
+
+#files li {
+  list-style: none;
+  position: relative;
+  cursor: pointer;
+}
+
+#files li h1 {
+  padding-left: 0.5em;
+  color: lightgrey;
+  position: relative;
+  font-size: 1em;
+  font-weight: normal;
+  top: 2.0em;
+}
+
+#files li canvas {
+  border: 1px solid blue;
 }
