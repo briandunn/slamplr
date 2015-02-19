@@ -70,10 +70,18 @@
     y-scale (/ height 2)]
     (map (fn [i y] [(* x-step i) (+ (* y y-scale) y-scale)]) (range) points)))
 
+(defn summarize [points resolution]
+  (let [group (fn [points] (last (sort-by #(Math/abs %) (map #(apply % points) [min max]))))]
+    (map group (partition-all (/ (count points) resolution) points))))
+
+; (defn summarize [points resolution] points)
+
 (defn repaint
   [ctx points]
   (time
-    (let [scaled (scale points (.. ctx -canvas -width) (.. ctx -canvas -height))]
+    (let [
+          resolution (.. ctx -canvas -width)
+          scaled (scale (summarize points resolution) resolution (.. ctx -canvas -height))]
       (.beginPath ctx)
       (let [[x y ] (first scaled)] (.moveTo ctx x y))
       (doseq [[x y] (next scaled)]
