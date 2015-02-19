@@ -71,13 +71,15 @@
     (map (fn [i y] [(* x-step i) (+ (* y y-scale) y-scale)]) (range) points)))
 
 (defn summarize [points resolution agg]
-  (map agg (partition-all (/ (count points) resolution) points)))
+  (concat [0] (map agg (partition-all (/ (count points) resolution) points)) [0]))
 
 (defn stroke-path [ctx path]
   (.beginPath ctx)
   (let [[x y ] (first path)] (.moveTo ctx x y))
   (doseq [[x y] (next path)] (.lineTo ctx x y))
-  (.stroke ctx))
+  (.stroke ctx)
+  (.fill ctx)
+  (.closePath ctx))
 
 (defn repaint [ctx points]
   (time
