@@ -62,16 +62,18 @@
 (defn float32array->seq [array]
   (.call (.. js/Array -prototype -slice) array))
 
+(defn scale [points width height]
+  (let [
+    x-step (/ width (- (count points) 1))
+    y-scale (/ height 2)]
+    (map (fn [i y] [(* x-step i) (+ (* y y-scale) y-scale)]) (range) points)))
+
 (defn repaint
   [ctx points]
-  (let [
-        x-step (/ (.. ctx -canvas -width) (- (count points) 1))
-        y-scale (/ (.. ctx -canvas -height) 2)
-        scaled-points (map (fn [i y]
-                        [(* x-step i) (+ (* y y-scale) y-scale)]) (range) points)]
+  (let [scaled (scale points (.. ctx -canvas -width) (.. ctx -canvas -height))]
     (.beginPath ctx)
-    (.moveTo ctx 0 y-scale)
-    (doseq [[x y] scaled-points]
+    (let [[x y ] (first scaled)] (.moveTo ctx x y))
+    (doseq [[x y] (next scaled)]
       (.lineTo ctx x y))
     (.stroke ctx)))
 
