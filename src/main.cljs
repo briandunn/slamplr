@@ -70,23 +70,21 @@
     y-scale (/ height 2)]
     (map (fn [i y] [(* x-step i) (+ (* y y-scale) y-scale)]) (range) points)))
 
-(defn summarize [points resolution]
-  (let [group (fn [points] (last (sort-by #(Math/abs %) (map #(apply % points) [min max]))))]
-    (map group (partition-all (/ (count points) resolution) points))))
-
-; (defn summarize [points resolution] points)
+(defn summarize [points resolution agg]
+  (map agg (partition-all (/ (count points) resolution) points)))
 
 (defn repaint
   [ctx points]
   (time
     (let [
           resolution (.. ctx -canvas -width)
-          scaled (scale (summarize points resolution) resolution (.. ctx -canvas -height))]
-      (.beginPath ctx)
-      (let [[x y ] (first scaled)] (.moveTo ctx x y))
-      (doseq [[x y] (next scaled)]
-        (.lineTo ctx x y))
-      (.stroke ctx))))
+          height (.. ctx -canvas -height)]
+      (doseq [edge (map #(scale (summarize points resolution (fn [points] (apply % points))) resolution height) [max min])]
+        (.beginPath ctx)
+        (let [[x y ] (first edge)] (.moveTo ctx x y))
+        (doseq [[x y] (next edge)]
+          (.lineTo ctx x y))
+        (.stroke ctx)))))
 
 (defn waveform [raw-array owner]
   (reify
