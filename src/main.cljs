@@ -73,18 +73,19 @@
 (defn summarize [points resolution agg]
   (map agg (partition-all (/ (count points) resolution) points)))
 
-(defn repaint
-  [ctx points]
+(defn stroke-path [ctx path]
+  (.beginPath ctx)
+  (let [[x y ] (first path)] (.moveTo ctx x y))
+  (doseq [[x y] (next path)] (.lineTo ctx x y))
+  (.stroke ctx))
+
+(defn repaint [ctx points]
   (time
     (let [
           resolution (.. ctx -canvas -width)
           height (.. ctx -canvas -height)]
       (doseq [edge (map #(scale (summarize points resolution (fn [points] (apply % points))) resolution height) [max min])]
-        (.beginPath ctx)
-        (let [[x y ] (first edge)] (.moveTo ctx x y))
-        (doseq [[x y] (next edge)]
-          (.lineTo ctx x y))
-        (.stroke ctx)))))
+        (stroke-path ctx edge)))))
 
 (defn waveform [raw-array owner]
   (reify
