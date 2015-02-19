@@ -4,11 +4,6 @@
             [om.dom :as dom :include-macros true]
             [cljs.core.async :as async :refer [put! chan <! >!]]))
 
-{:name "foo"
- :data "binary"
- :analysis [nil "data"]}
-
-
 (defonce file-chan (chan 10))
 (defonce sample-chan (chan 10))
 
@@ -67,10 +62,6 @@
                       :onDragEnter (fn [e] (.preventDefault e) (.stopPropagation e))
                       } "drop files here"))))
 
-; (extend js/Float32Array
-;   ISeq
-;   )
-
 (defn float32array->seq [array]
   (.call (.. js/Array -prototype -slice) array))
 
@@ -121,10 +112,6 @@
           (om/build file-list (:files state))))))
 
 (om/root root app-state
-  {:target (. js/document (getElementById  "app"))})
+  {:target (. js/document (getElementById "app"))})
 
-(comment
 
-(get-in @app-state [:files 0 :analysis])
-
-)
