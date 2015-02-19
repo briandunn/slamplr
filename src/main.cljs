@@ -4,6 +4,8 @@
             [om.dom :as dom :include-macros true]
             [cljs.core.async :as async :refer [put! chan <! >!]]))
 
+(enable-console-print!)
+
 (defonce file-chan (chan 10))
 (defonce sample-chan (chan 10))
 
@@ -70,12 +72,13 @@
 
 (defn repaint
   [ctx points]
-  (let [scaled (scale points (.. ctx -canvas -width) (.. ctx -canvas -height))]
-    (.beginPath ctx)
-    (let [[x y ] (first scaled)] (.moveTo ctx x y))
-    (doseq [[x y] (next scaled)]
-      (.lineTo ctx x y))
-    (.stroke ctx)))
+  (time
+    (let [scaled (scale points (.. ctx -canvas -width) (.. ctx -canvas -height))]
+      (.beginPath ctx)
+      (let [[x y ] (first scaled)] (.moveTo ctx x y))
+      (doseq [[x y] (next scaled)]
+        (.lineTo ctx x y))
+      (.stroke ctx))))
 
 (defn waveform [raw-array owner]
   (reify
