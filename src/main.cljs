@@ -53,11 +53,8 @@
                       :onDrop (fn [e]
                                 (.preventDefault e)
                                 (.stopPropagation e)
-                                (let [files (.. e -dataTransfer -files)]
-                                  (loop [i 0]
-                                    (when (< i (.. files -length))
-                                      (put! file-chan (.item files i))
-                                      (recur (inc i))))))
+                                  (doseq [file (.. e -dataTransfer -files)]
+                                      (put! file-chan file)))
                       :onDragOver (fn [e] (.preventDefault e) (.stopPropagation e))
                       :onDragEnter (fn [e] (.preventDefault e) (.stopPropagation e))
                       } "drop files here"))))
@@ -66,9 +63,8 @@
   (.call (.. js/Array -prototype -slice) array))
 
 (defn repaint
-  [ctx pcm-data]
+  [ctx points]
   (let [
-        points (float32array->seq pcm-data)
         x-step (/ (.. ctx -canvas -width) (- (count points) 1))
         y-scale (/ (.. ctx -canvas -height) 2)
         scaled-points (map (fn [i y]
@@ -114,4 +110,18 @@
 (om/root root app-state
   {:target (. js/document (getElementById "app"))})
 
+(deftype FileList [l i]
+  ISeqable
+  (-seq [this] this)
+  ISeq
+  (-first [_] (.item l i))
+  INext
+  (-next [_] (if (< (inc i) (.. l -length))
+               (FileList. l (inc i))
+               nil)))
 
+(extend-protocol ISeqable
+  js/Float32Array
+  (-seq [array] (IndexedSeq. array 0))
+  js/FileList
+  (-seq [l] (FileList. l 0)))
