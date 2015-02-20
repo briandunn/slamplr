@@ -40,8 +40,7 @@
   (let [reader (js/FileReader.)]
     (set! (.-onload reader) (fn [e]
                               (.decodeAudioData audio-context (.. reader -result) (fn [audio-data]
-                                                                                    (put! sample-chan {:name (.. file -name) :data audio-data})
-                                                                                    ))))
+                                                                                    (put! sample-chan {:name (.. file -name) :data audio-data})))))
     (.readAsArrayBuffer reader file)))
 
 (defn analyze [sample]
@@ -73,9 +72,6 @@
                       :onDragOver (fn [e] (.preventDefault e) (.stopPropagation e))
                       :onDragEnter (fn [e] (.preventDefault e) (.stopPropagation e))
                       } "drop files here"))))
-
-(defn float32array->seq [array]
-  (.call (.. js/Array -prototype -slice) array))
 
 (defn scale [points width height]
   (let [
