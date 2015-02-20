@@ -7,3 +7,7 @@ A slamin' in browser sampler
 you need boot.
 
     https://github.com/boot-clj/boot#install
+
+then do
+
+    boot dev

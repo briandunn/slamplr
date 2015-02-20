@@ -1,1 +1,0 @@
-boot serve -d target/ watch speak reload cljs-repl cljs -us
