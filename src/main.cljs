@@ -9,6 +9,14 @@
 (defonce file-chan (chan 10))
 (defonce sample-chan (chan 10))
 
+(comment
+  {:files [{
+            :data []
+            :analysis []
+            :name ""
+            :selection [0 0]
+            }]})
+
 (defonce app-state (atom {:files []}))
 
 (defonce audio-context (js/AudioContext.))
@@ -16,6 +24,11 @@
 (defn add-sample! [sample]
   (swap! app-state update-in [:files] conj sample)
   [:files (dec (count (:files @app-state)))])
+
+(defn swap-closest [x selection]
+  (let [s (or selection [0 0])
+        pairs (sort-by first (map (fn [pt] [(Math/abs (- pt x )) pt]) s))]
+    (vec (sort [x (last (last (rest pairs)))]))))
 
 (defn play [data]
   (let [buffer-source (.createBufferSource audio-context)]
@@ -81,6 +94,11 @@
   (.fill ctx)
   (.closePath ctx))
 
+(defn get-coords [dom e]
+  (let [x (- (.-pageX e) (.-offsetLeft dom))
+        y (- (.-pageY e) (.-offsetTop dom))]
+    [x y]))
+
 (defn repaint [ctx points]
   (time
     (let [
@@ -89,23 +107,35 @@
       (doseq [edge (map #(scale (summarize points resolution (fn [points] (apply % points))) resolution height) [max min])]
         (stroke-path ctx edge)))))
 
-(defn waveform [raw-array owner]
+(defn waveform [file owner]
   (reify
     om/IDidMount
     (did-mount [_]
-      (repaint (.getContext (om/get-node owner) "2d") raw-array))
+      (repaint (.getContext (om/get-node owner) "2d") (:analysis file)))
     om/IRender
       (render [_]
         (dom/canvas #js {:width 1000 :height 100} nil))))
 
-(defn file-item [file]
+(defn css-offsets [[start stop]]
+  {:left start :width (- stop start)})
+
+(defn file-item [file owner]
   (reify
     om/IRender
       (render [_]
-        (dom/li #js {:onClick (fn [_]
-                                (play (:data file)))}
+        (print (keys file))
+        (dom/li nil
                 (dom/h1 nil (:name file))
-                (om/build waveform (:analysis file))))))
+                (dom/button #js {:onClick (fn [e]
+                                (.preventDefault e)
+                                (play (:data file)))} "Play")
+                (dom/div #js { :onClick (fn [e]
+                                          (.preventDefault e)
+                                          (let [dom (om/get-node owner)
+                                                [x y] (get-coords dom e)]
+                                            (om/transact! file :selection (partial swap-closest x))))}
+                  (dom/div #js {:className "selection" :style (clj->js (css-offsets (:selection file)))} nil)
+                  (om/build waveform file))))))
 
 (defn file-list [files parent]
   (reify
