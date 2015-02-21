@@ -1,8 +1,9 @@
-(ns main
-  (:require-macros  [cljs.core.async.macros :refer  [go]])
+(ns slamplr.main
+  (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
             [cljs.core.async :as async :refer [put! chan <! >!]]))
+
 
 (enable-console-print!)
 
