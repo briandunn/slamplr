@@ -3,13 +3,13 @@
 (set-env!
   :source-paths   #{"src"}
   :resource-paths #{"html"}
-  :dependencies '[[adzerk/boot-cljs       "0.0-2411-8" :scope "test"]
+  :dependencies '[[adzerk/boot-cljs       "0.0-2727-0" :scope "test"]
                   [adzerk/boot-cljs-repl  "0.1.9"      :scope "test"]
                   [adzerk/boot-reload     "0.2.4"      :scope "test"]
-                  [pandeiro/boot-http     "0.6.1"      :scope "test"]
+                  [pandeiro/boot-http     "0.6.2"      :scope "test"]
                   [org.clojure/clojure    "1.6.0"      :scope "provided"]
                   [org.clojure/core.async "0.1.346.0-17112a-alpha" :scope "provided"]
-                  [org.omcljs/om          "0.8.7"] ])
+                  [org.omcljs/om          "0.8.8"] ])
 
 (require
 '[adzerk.boot-cljs      :refer [cljs]]
