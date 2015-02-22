@@ -31,11 +31,24 @@
         pairs (sort-by first (map (fn [pt] [(Math/abs (- pt x )) pt]) s))]
     (vec (sort [x (last (last (rest pairs)))]))))
 
-(defn play [data]
-  (let [buffer-source (.createBufferSource audio-context)]
-    (set! (.-buffer buffer-source) data)
-    (.connect buffer-source (.. audio-context -destination)
-    (.start buffer-source 0))))
+(defn play
+  ( [buffer]
+    (let [buffer-source (.createBufferSource audio-context)]
+      (set! (.-buffer buffer-source) buffer)
+      (.connect buffer-source (.. audio-context -destination)
+      (.start buffer-source 0))))
+  ( [buffer selection]
+    (let [
+          slice-range (map (partial * (Math/round (/ (.-length buffer) 1000))) selection)
+          slice-length (reduce - (reverse slice-range))
+          slice-buffer (.createBuffer audio-context (.-numberOfChannels buffer) slice-length (.-sampleRate buffer))
+          start (first slice-range)
+          dest (.getChannelData slice-buffer 0)
+          src (.getChannelData buffer 0)
+          ]
+      (doseq [i (range slice-length)]
+        (aset dest i (aget src (+ start i))))
+      (play slice-buffer))))
 
 (defn load-into-file-buffer [file]
   (let [reader (js/FileReader.)]
@@ -120,19 +133,18 @@
   (reify
     om/IRender
       (render [_]
-        (print (keys file))
         (dom/li nil
-                (dom/h1 nil (:name file))
-                (dom/button #js {:onClick (fn [e]
-                                (.preventDefault e)
-                                (play (:data file)))} "Play")
-                (dom/div #js { :onClick (fn [e]
-                                          (.preventDefault e)
-                                          (let [dom (om/get-node owner)
-                                                [x y] (get-coords dom e)]
-                                            (om/transact! file :selection (partial swap-closest x))))}
-                  (dom/div #js {:className "selection" :style (clj->js (css-offsets (:selection file)))} nil)
-                  (om/build waveform file))))))
+          (dom/h1 nil (:name file))
+          (dom/button #js {:onClick (fn [e]
+                          (.preventDefault e)
+                          (play (:data file) (:selection file)))} "Play")
+          (dom/div #js { :onClick (fn [e]
+                                    (.preventDefault e)
+                                    (let [dom (om/get-node owner)
+                                          [x y] (get-coords dom e)]
+                                      (om/transact! file :selection (partial swap-closest x))))}
+            (dom/div #js {:className "selection" :style (clj->js (css-offsets (:selection file)))} nil)
+            (om/build waveform file))))))
 
 (defn file-list [files parent]
   (reify
