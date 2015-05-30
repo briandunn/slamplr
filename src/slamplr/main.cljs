@@ -110,7 +110,7 @@
     om/IRender
       (render [_]
         (let [resolution 1000 height 100 points (:analysis file)]
-          (apply dom/svg #js {:width "100%" :height "100%" :viewBox (str "0 0 " resolution " " height)}
+          (apply dom/svg #js {:width (f->% 1) :height (f->% 1) :viewBox (str "0 0 " resolution " " height)}
             (om/build-all
               (fn [agg owner]
                 (reify
