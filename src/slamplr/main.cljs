@@ -27,8 +27,7 @@
   [:files (dec (count (:files @app-state)))])
 
 (defn swap-closest [x selection]
-  (let [s (or selection [0 0])
-        pairs (sort-by first (map (fn [pt] [(Math/abs (- pt x )) pt]) s))]
+  (let [pairs (sort-by first (map (fn [pt] [(Math/abs (- pt x )) pt]) selection))]
     (vec (sort [x (last (last (rest pairs)))]))))
 
 (defn play
@@ -40,7 +39,7 @@
 
   ( [buffer selection]
     (let [
-          slice-range (map (partial * (Math/round (/ (.-length buffer) 1000))) selection)
+          slice-range (map #(Math/round (* (.-length buffer) %)) selection)
           slice-length (reduce - (reverse slice-range))
           slice-buffer (.createBuffer audio-context (.-numberOfChannels buffer) slice-length (.-sampleRate buffer))
           start (first slice-range)
@@ -55,7 +54,7 @@
   (let [reader (js/FileReader.)]
     (set! (.-onload reader) (fn [e]
                               (.decodeAudioData audio-context (.. reader -result) (fn [audio-data]
-                                                                                    (put! sample-chan {:name (.. file -name) :data audio-data})))))
+                                                                                    (put! sample-chan {:name (.. file -name) :data audio-data :selection [0 1]})))))
     (.readAsArrayBuffer reader file)))
 
 (defn analyze [sample]
@@ -97,10 +96,14 @@
 (defn summarize [points resolution agg]
   (concat [0] (map agg (partition-all (/ (count points) resolution) points)) [0]))
 
-(defn get-coords [dom e]
-  (let [x (- (.-pageX e) (.-offsetLeft dom))
-        y (- (.-pageY e) (.-offsetTop dom))]
-    [x y]))
+(defn relative-coords [dom e]
+  (let [ dom-rect (.getBoundingClientRect dom)
+         x (- (.-pageX e) (.-left dom-rect))
+         y (- (.-pageY e) (.-top dom-rect))
+        ]
+    [(/ x (.-width dom-rect)) (/ y (.-height dom-rect))]))
+
+(defn f->% [f] (str (* f 100) "%"))
 
 (defn waveform [file owner]
   (reify
@@ -117,7 +120,7 @@
               [min max]))))))
 
 (defn css-offsets [[start stop]]
-  {:left start :width (- stop start)})
+  {:left (f->% start) :width (f->% (- stop start))})
 
 (defn file-item [file owner]
   (reify
@@ -131,7 +134,7 @@
           (dom/div #js { :onClick (fn [e]
                                     (.preventDefault e)
                                     (let [dom (om/get-node owner)
-                                          [x y] (get-coords dom e)]
+                                          [x y] (relative-coords dom e)]
                                       (om/transact! file :selection (partial swap-closest x))))}
             (dom/div #js {:className "selection" :style (clj->js (css-offsets (:selection file)))} nil)
             (om/build waveform file))))))
