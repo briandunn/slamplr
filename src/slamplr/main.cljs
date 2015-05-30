@@ -37,6 +37,7 @@
       (set! (.-buffer buffer-source) buffer)
       (.connect buffer-source (.. audio-context -destination)
       (.start buffer-source 0))))
+
   ( [buffer selection]
     (let [
           slice-range (map (partial * (Math/round (/ (.-length buffer) 1000))) selection)
@@ -96,35 +97,24 @@
 (defn summarize [points resolution agg]
   (concat [0] (map agg (partition-all (/ (count points) resolution) points)) [0]))
 
-(defn stroke-path [ctx path]
-  (.beginPath ctx)
-  (let [[x y ] (first path)] (.moveTo ctx x y))
-  (doseq [[x y] (next path)] (.lineTo ctx x y))
-  (.stroke ctx)
-  (.fill ctx)
-  (.closePath ctx))
-
 (defn get-coords [dom e]
   (let [x (- (.-pageX e) (.-offsetLeft dom))
         y (- (.-pageY e) (.-offsetTop dom))]
     [x y]))
 
-(defn repaint [ctx points]
-  (time
-    (let [
-          resolution (.. ctx -canvas -width)
-          height (.. ctx -canvas -height)]
-      (doseq [edge (map #(scale (summarize points resolution (fn [points] (apply % points))) resolution height) [max min])]
-        (stroke-path ctx edge)))))
-
 (defn waveform [file owner]
   (reify
-    om/IDidMount
-    (did-mount [_]
-      (repaint (.getContext (om/get-node owner) "2d") (:analysis file)))
     om/IRender
       (render [_]
-        (dom/canvas #js {:width 1000 :height 100} nil))))
+        (let [resolution 1000 height 100 points (:analysis file)]
+          (apply dom/svg #js {:width "100%" :height "100%" :viewBox (str "0 0 " resolution " " height)}
+            (om/build-all
+              (fn [agg owner]
+                (reify
+                  om/IRender
+                  (render [_]
+                    (dom/polygon #js {:points (apply str (interpose " " (flatten (scale (summarize points resolution (fn [points] (apply agg points))) resolution height))))}))))
+              [min max]))))))
 
 (defn css-offsets [[start stop]]
   {:left start :width (- stop start)})
@@ -178,3 +168,5 @@
   (-seq [array] (IndexedSeq. array 0))
   js/FileList
   (-seq [l] (FileList. l 0)))
+
+; (apply str (interpose " "  (flatten [[0 1] [2 3]])))
