@@ -32,23 +32,23 @@
 
 (defn play
   ( [buffer]
-    (let [buffer-source (.createBufferSource audio-context)]
-      (set! (.-buffer buffer-source) buffer)
-      (.connect buffer-source (.. audio-context -destination)
-      (.start buffer-source 0))))
+   (let [buffer-source (.createBufferSource audio-context)]
+     (set! (.-buffer buffer-source) buffer)
+     (.connect buffer-source (.. audio-context -destination)
+               (.start buffer-source 0))))
 
   ( [buffer selection]
-    (let [
-          slice-range (map #(Math/round (* (.-length buffer) %)) selection)
-          slice-length (reduce - (reverse slice-range))
-          slice-buffer (.createBuffer audio-context (.-numberOfChannels buffer) slice-length (.-sampleRate buffer))
-          start (first slice-range)
-          dest (.getChannelData slice-buffer 0)
-          src (.getChannelData buffer 0)
-          ]
-      (doseq [i (range slice-length)]
-        (aset dest i (aget src (+ start i))))
-      (play slice-buffer))))
+   (let [
+         slice-range (map #(Math/round (* (.-length buffer) %)) selection)
+         slice-length (reduce - (reverse slice-range))
+         slice-buffer (.createBuffer audio-context (.-numberOfChannels buffer) slice-length (.-sampleRate buffer))
+         start (first slice-range)
+         dest (.getChannelData slice-buffer 0)
+         src (.getChannelData buffer 0)
+         ]
+     (doseq [i (range slice-length)]
+       (aset dest i (aget src (+ start i))))
+     (play slice-buffer))))
 
 (defn load-into-file-buffer [file]
   (let [reader (js/FileReader.)]
@@ -75,22 +75,22 @@
 (defn drop-zone [_]
   (reify
     om/IRender
-      (render [this]
-        (dom/div #js {
-                      :id "drop-zone"
-                      :onDrop (fn [e]
-                                (.preventDefault e)
-                                (.stopPropagation e)
-                                  (doseq [file (.. e -dataTransfer -files)]
-                                      (put! file-chan file)))
-                      :onDragOver (fn [e] (.preventDefault e) (.stopPropagation e))
-                      :onDragEnter (fn [e] (.preventDefault e) (.stopPropagation e))
-                      } "drop files here"))))
+    (render [this]
+      (dom/div #js {
+                    :id "drop-zone"
+                    :onDrop (fn [e]
+                              (.preventDefault e)
+                              (.stopPropagation e)
+                              (doseq [file (.. e -dataTransfer -files)]
+                                (put! file-chan file)))
+                    :onDragOver (fn [e] (.preventDefault e) (.stopPropagation e))
+                    :onDragEnter (fn [e] (.preventDefault e) (.stopPropagation e))
+                    } "drop files here"))))
 
 (defn scale [points width height]
   (let [
-    x-step (/ width (- (count points) 1))
-    y-scale (/ height 2)]
+        x-step (/ width (- (count points) 1))
+        y-scale (/ height 2)]
     (map (fn [i y] [(* x-step i) (+ (* y y-scale) y-scale)]) (range) points)))
 
 (defn summarize [points resolution agg]
@@ -98,8 +98,8 @@
 
 (defn relative-coords [dom e]
   (let [ dom-rect (.getBoundingClientRect dom)
-         x (- (.-pageX e) (.-left dom-rect))
-         y (- (.-pageY e) (.-top dom-rect))
+        x (- (.-pageX e) (.-left dom-rect))
+        y (- (.-pageY e) (.-top dom-rect))
         ]
     [(/ x (.-width dom-rect)) (/ y (.-height dom-rect))]))
 
@@ -108,16 +108,16 @@
 (defn waveform [file owner]
   (reify
     om/IRender
-      (render [_]
-        (let [resolution 1000 height 100 points (:analysis file)]
-          (apply dom/svg #js {:width (f->% 1) :height (f->% 1) :viewBox (str "0 0 " resolution " " height)}
-            (om/build-all
-              (fn [agg owner]
-                (reify
-                  om/IRender
-                  (render [_]
-                    (dom/polygon #js {:points (apply str (interpose " " (flatten (scale (summarize points resolution (fn [points] (apply agg points))) resolution height))))}))))
-              [min max]))))))
+    (render [_]
+      (let [resolution 1000 height 100 points (:analysis file)]
+        (apply dom/svg #js {:width (f->% 1) :height (f->% 1) :viewBox (str "0 0 " resolution " " height)}
+               (om/build-all
+                 (fn [agg owner]
+                   (reify
+                     om/IRender
+                     (render [_]
+                       (dom/polygon #js {:points (apply str (interpose " " (flatten (scale (summarize points resolution (fn [points] (apply agg points))) resolution height))))}))))
+                 [min max]))))))
 
 (defn css-offsets [[start stop]]
   {:left (f->% start) :width (f->% (- stop start))})
@@ -125,36 +125,36 @@
 (defn file-item [file owner]
   (reify
     om/IRender
-      (render [_]
-        (dom/li nil
-          (dom/h1 nil (:name file))
-          (dom/button #js {:onClick (fn [e]
-                          (.preventDefault e)
-                          (play (:data file) (:selection file)))} "Play")
-          (dom/div #js { :onClick (fn [e]
-                                    (.preventDefault e)
-                                    (let [dom (om/get-node owner)
-                                          [x y] (relative-coords dom e)]
-                                      (om/transact! file :selection (partial swap-closest x))))}
-            (dom/div #js {:className "selection" :style (clj->js (css-offsets (:selection file)))} nil)
-            (om/build waveform file))))))
+    (render [_]
+      (dom/li nil
+              (dom/h1 nil (:name file))
+              (dom/button #js {:onClick (fn [e]
+                                          (.preventDefault e)
+                                          (play (:data file) (:selection file)))} "Play")
+              (dom/div #js { :onClick (fn [e]
+                                        (.preventDefault e)
+                                        (let [dom (om/get-node owner)
+                                              [x y] (relative-coords dom e)]
+                                          (om/transact! file :selection (partial swap-closest x))))}
+                       (dom/div #js {:className "selection" :style (clj->js (css-offsets (:selection file)))} nil)
+                       (om/build waveform file))))))
 
 (defn file-list [files parent]
   (reify
     om/IRender
-      (render [_]
-        (apply dom/ul #js {:id "files"} (om/build-all file-item files)))))
+    (render [_]
+      (apply dom/ul #js {:id "files"} (om/build-all file-item files)))))
 
 (defn root [state parent]
   (reify
     om/IRender
-      (render [_]
-        (dom/main nil
-          (om/build drop-zone nil)
-          (om/build file-list (:files state))))))
+    (render [_]
+      (dom/main nil
+                (om/build drop-zone nil)
+                (om/build file-list (:files state))))))
 
 (om/root root app-state
-  {:target (. js/document (getElementById "app"))})
+         {:target (. js/document (getElementById "app"))})
 
 (deftype FileList [l i]
   ISeqable
@@ -171,5 +171,3 @@
   (-seq [array] (IndexedSeq. array 0))
   js/FileList
   (-seq [l] (FileList. l 0)))
-
-; (apply str (interpose " "  (flatten [[0 1] [2 3]])))
