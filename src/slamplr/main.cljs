@@ -93,13 +93,6 @@
         y-scale (/ height 2)]
     (map (fn [i y] [(* x-step i) (+ (* y y-scale) y-scale)]) (range) points)))
 
-(defn relative-coords [dom e]
-  (let [ dom-rect (.getBoundingClientRect dom)
-        x (- (.-pageX e) (.-left dom-rect))
-        y (- (.-pageY e) (.-top dom-rect))
-        ]
-    [(/ x (.-width dom-rect)) (/ y (.-height dom-rect))]))
-
 (defn f->% [f] (str (* f 100) "%"))
 
 (defn join [delimiter s]
@@ -120,6 +113,33 @@
 (defn css-offsets [[start stop]]
   {:left (f->% start) :width (f->% (- stop start))})
 
+(defn drag-handle [path]
+  (fn [cursor owner]
+    (reify
+      om/IRenderState
+      (render-state [_ state]
+        (dom/div #js {:className "drag-handle"
+                      :onMouseDown (fn [e]
+                                     (.preventDefault e)
+                                     (let [ dom-rect (.getBoundingClientRect (om/get-node owner))]
+                                       (om/set-state! owner :drag-start-position (- (.-pageX e) (.-left dom-rect)))))
+                      :onMouseMove (fn [e]
+                                     (.preventDefault e)
+                                     (when-let [start (:drag-start-position state)]
+                                       (let [ dom-rect (.getBoundingClientRect (.. (om/get-node owner) -parentNode -parentNode))
+                                              new-end (/ (- (- (.-pageX e) start) (.-left dom-rect)) (.-width dom-rect))]
+                                         (print new-end)
+                                         (om/update! cursor path new-end))))
+                      :onMouseUp   (fn [e]
+                                     (.preventDefault e)
+                                     (om/set-state! owner :drag-start-position nil))
+                      :onMouseOut  (fn [e]
+                                     (.preventDefault e)
+                                     (om/set-state! owner :drag-start-position false))
+                      } nil)))))
+(def left-handle (drag-handle [0]))
+(def right-handle (drag-handle [1]))
+
 (defn file-item [file owner]
   (reify
     om/IRender
@@ -129,12 +149,11 @@
               (dom/button #js {:onClick (fn [e]
                                           (.preventDefault e)
                                           (play (:data file) (:selection file)))} "Play")
-              (dom/div #js { :onClick (fn [e]
-                                        (.preventDefault e)
-                                        (let [dom (om/get-node owner)
-                                              [x y] (relative-coords dom e)]
-                                          (om/transact! file :selection (partial swap-closest x))))}
-                       (dom/div #js {:className "selection" :style (clj->js (css-offsets (:selection file)))} nil)
+              (dom/div nil
+                       (dom/div #js {:className "selection"
+                                     :style (clj->js (css-offsets (:selection file)))}
+                          (om/build left-handle (:selection file))
+                          (om/build right-handle (:selection file)))
                        (om/build waveform (:analysis file)))))))
 
 (defn file-list [files parent]
