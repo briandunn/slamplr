@@ -93,9 +93,6 @@
         y-scale (/ height 2)]
     (map (fn [i y] [(* x-step i) (+ (* y y-scale) y-scale)]) (range) points)))
 
-(defn summarize [points resolution agg]
-  (concat [0] (map agg (partition-all (/ (count points) resolution) points)) [0]))
-
 (defn relative-coords [dom e]
   (let [ dom-rect (.getBoundingClientRect dom)
         x (- (.-pageX e) (.-left dom-rect))
@@ -105,19 +102,20 @@
 
 (defn f->% [f] (str (* f 100) "%"))
 
+(defn join [delimiter s]
+  (apply str (interpose delimiter s)))
+
 (defn waveform [points owner]
   (reify
     om/IRender
     (render [_]
-      (let [resolution 1000 height 100]
-        (apply dom/svg #js {:width (f->% 1) :height (f->% 1) :viewBox (str "0 0 " resolution " " height)}
-               (om/build-all
-                 (fn [agg owner]
-                   (reify
-                     om/IRender
-                     (render [_]
-                       (dom/polygon #js {:points (apply str (interpose " " (flatten (scale (summarize points resolution (fn [points] (apply agg points))) resolution height))))}))))
-                 [min max]))))))
+      (let [resolution 1000
+            height 100
+            groups (partition-all (/ (count points) resolution) points)
+            points->attr (fn [agg] (join " " (flatten (scale (concat [0] (map (partial apply agg) groups) [0]) resolution height))))]
+        (dom/svg #js {:width (f->% 1) :height (f->% 1) :viewBox (join " " [0 0 resolution height])}
+                 (dom/polygon #js {:points (points->attr max)})
+                 (dom/polygon #js {:points (points->attr min)}))))))
 
 (defn css-offsets [[start stop]]
   {:left (f->% start) :width (f->% (- stop start))})
