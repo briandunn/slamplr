@@ -100,6 +100,8 @@
 
 (defn waveform [points owner]
   (reify
+    om/IDisplayName
+    (display-name [_] "waveform")
     om/IRender
     (render [_]
       (let [resolution 1000
@@ -115,6 +117,8 @@
 
 (defn file-item [file owner]
   (reify
+    om/IDisplayName
+    (display-name [_] "file-item")
     om/IRenderState
     (render-state [_ state]
       (dom/li nil
@@ -148,6 +152,8 @@
 
 (defn file-list [files parent]
   (reify
+    om/IDisplayName
+    (display-name [_] "file-list")
     om/IRender
     (render [_]
       (apply dom/ul #js {:id "files"} (om/build-all file-item files)))))
