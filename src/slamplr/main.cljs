@@ -26,10 +26,6 @@
   (swap! app-state update-in [:files] conj sample)
   [:files (dec (count (:files @app-state)))])
 
-(defn swap-closest [x selection]
-  (let [pairs (sort-by first (map (fn [pt] [(Math/abs (- pt x )) pt]) selection))]
-    (vec (sort [x (last (last (rest pairs)))]))))
-
 (defn play
   ( [buffer]
    (let [buffer-source (.createBufferSource audio-context)]
@@ -138,16 +134,17 @@
                                                                         (fn [[start, stop]] [(min stop (max 0 new-end)) stop])
                                                                         (fn [[start, stop]] [start (max start (min 1 new-end))])
                                                                         ] path))))) }
-                         (dom/div #js {:className "selection"
-                                       :style (clj->js (css-offsets (:selection file))) }
-                                  (let [drag-handle (fn [path] (dom/div #js {:className "drag-handle"
-                                                :onMouseDown (fn [e]
-                                                               (.preventDefault e)
-                                                               (let [ dom-rect (.getBoundingClientRect e.target)]
-                                                                 (om/set-state! owner :drag {:start (* (get-in [-1 1] path) (- (.-pageX e) (.-left dom-rect))) :path path})))
-                                                :onMouseUp stop-drag }))]
-                                      (drag-handle [0])
-                                      (drag-handle [1]))
+
+                         (let [ drag-handle-attrs (fn [path] {:className "drag-handle"
+                                                              :onMouseDown (fn [e]
+                                                                             (.preventDefault e)
+                                                                             (let [ dom-rect (.getBoundingClientRect e.target)]
+                                                                               (om/set-state! owner :drag {:start (* (get-in [-1 1] path) (- (.-pageX e) (.-left dom-rect))) :path path})))
+                                                              :onMouseUp stop-drag })]
+                           (dom/div #js {:className "selection"
+                                         :style (clj->js (css-offsets (:selection file))) }
+                                    (dom/div (clj->js (drag-handle-attrs [0])))
+                                    (dom/div (clj->js (drag-handle-attrs [1])))))
                          (om/build waveform (:analysis file))))))))
 
 (defn file-list [files parent]
