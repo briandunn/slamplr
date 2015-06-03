@@ -111,6 +111,10 @@
 (defn css-offsets [[start stop]]
   {:left (f->% start) :width (f->% (- stop start))})
 
+(defn constrain [point bounds]
+  (let [[start stop] (sort bounds)]
+    (min stop (max start point))))
+
 (defn file-item [file owner]
   (reify
     om/IDisplayName
@@ -131,15 +135,16 @@
                                                      new-end (/ (- (+ (.-pageX e) start) (.-left dom-rect)) (.-width dom-rect))]
                                                  (om/transact! file [:selection]
                                                                (get-in [
-                                                                        (fn [[start, stop]] [(min stop (max 0 new-end)) stop])
-                                                                        (fn [[start, stop]] [start (max start (min 1 new-end))])
+                                                                        (fn [[start, stop]] [(constrain new-end [0 stop]) stop])
+                                                                        (fn [[start, stop]] [start (constrain new-end [1 start])])
                                                                         ] path))))) }
 
                          (let [ drag-handle-attrs (fn [path] {:className "drag-handle"
                                                               :onMouseDown (fn [e]
                                                                              (.preventDefault e)
-                                                                             (let [ dom-rect (.getBoundingClientRect e.target)]
-                                                                               (om/set-state! owner :drag {:start (* (get-in [-1 1] path) (- (.-pageX e) (.-left dom-rect))) :path path})))
+                                                                             (let [ dom-rect (.getBoundingClientRect e.target)
+                                                                                   start (* (get-in [-1 1] path) (- (.-pageX e) (.-left dom-rect)))]
+                                                                               (om/set-state! owner :drag {:start start :path path})))
                                                               :onMouseUp stop-drag })]
                            (dom/div #js {:className "selection"
                                          :style (clj->js (css-offsets (:selection file))) }
