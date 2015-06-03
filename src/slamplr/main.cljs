@@ -142,11 +142,12 @@
                          (let [ drag-handle-attrs (fn [path] {:className "drag-handle"
                                                               :onMouseDown (fn [e]
                                                                              (.preventDefault e)
-                                                                             (let [ dom-rect (.getBoundingClientRect e.target)
-                                                                                   start (* (get-in [-1 1] path) (- (.-pageX e) (.-left dom-rect)))]
+                                                                             (let [ dom-rect (.. e -target getBoundingClientRect)
+                                                                                   corner-prop (get-in ["left" "right"] path)
+                                                                                   start (- (aget dom-rect corner-prop) (.-pageX e))]
                                                                                (om/set-state! owner :drag {:start start :path path})))
                                                               :onMouseUp stop-drag })]
-                           (dom/div #js {:className "selection"
+                           (dom/div #js {:className "selection" :draggable true
                                          :style (clj->js (css-offsets (:selection file))) }
                                     (dom/div (clj->js (drag-handle-attrs [0])))
                                     (dom/div (clj->js (drag-handle-attrs [1])))))
@@ -180,6 +181,7 @@
   (-next [_] (if (< (inc i) (.. l -length))
                (FileList. l (inc i))
                nil)))
+(+ 1 1)
 
 (extend-protocol ISeqable
   js/Float32Array
