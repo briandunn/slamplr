@@ -93,13 +93,6 @@
         y-scale (/ height 2)]
     (map (fn [i y] [(* x-step i) (+ (* y y-scale) y-scale)]) (range) points)))
 
-(defn relative-coords [dom e]
-  (let [ dom-rect (.getBoundingClientRect dom)
-        x (- (.-pageX e) (.-left dom-rect))
-        y (- (.-pageY e) (.-top dom-rect))
-        ]
-    [(/ x (.-width dom-rect)) (/ y (.-height dom-rect))]))
-
 (defn f->% [f] (str (* f 100) "%"))
 
 (defn join [delimiter s]
@@ -122,20 +115,36 @@
 
 (defn file-item [file owner]
   (reify
-    om/IRender
-    (render [_]
+    om/IRenderState
+    (render-state [_ state]
       (dom/li nil
               (dom/h1 nil (:name file))
               (dom/button #js {:onClick (fn [e]
                                           (.preventDefault e)
                                           (play (:data file) (:selection file)))} "Play")
-              (dom/div #js { :onClick (fn [e]
-                                        (.preventDefault e)
-                                        (let [dom (om/get-node owner)
-                                              [x y] (relative-coords dom e)]
-                                          (om/transact! file :selection (partial swap-closest x))))}
-                       (dom/div #js {:className "selection" :style (clj->js (css-offsets (:selection file)))} nil)
-                       (om/build waveform (:analysis file)))))))
+              (let [stop-drag (fn [e] (.preventDefault e) (om/set-state! owner :drag nil))]
+                (dom/div #js {:onMouseLeave stop-drag
+                              :onMouseMove (fn [e]
+                                             (.preventDefault e)
+                                             (when-let [{path :path start :start} (:drag state)]
+                                               (let [ dom-rect (.getBoundingClientRect (om/get-node owner))
+                                                     new-end (/ (- (+ (.-pageX e) start) (.-left dom-rect)) (.-width dom-rect))]
+                                                 (om/transact! file [:selection]
+                                                               (get-in [
+                                                                        (fn [[start, stop]] [(min stop (max 0 new-end)) stop])
+                                                                        (fn [[start, stop]] [start (max start (min 1 new-end))])
+                                                                        ] path))))) }
+                         (dom/div #js {:className "selection"
+                                       :style (clj->js (css-offsets (:selection file))) }
+                                  (let [drag-handle (fn [path] (dom/div #js {:className "drag-handle"
+                                                :onMouseDown (fn [e]
+                                                               (.preventDefault e)
+                                                               (let [ dom-rect (.getBoundingClientRect e.target)]
+                                                                 (om/set-state! owner :drag {:start (* (get-in [-1 1] path) (- (.-pageX e) (.-left dom-rect))) :path path})))
+                                                :onMouseUp stop-drag }))]
+                                      (drag-handle [0])
+                                      (drag-handle [1]))
+                         (om/build waveform (:analysis file))))))))
 
 (defn file-list [files parent]
   (reify

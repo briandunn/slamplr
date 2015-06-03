@@ -33,3 +33,16 @@
   bottom: 0px;
   background: rgba(0, 0, 0, 0.1);
 }
+
+#files li .selection .drag-handle {
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  width: 20px;
+  background: rgba(0, 0, 0, 0.1);
+  cursor: ew-resize;
+}
+
+#files li .selection .drag-handle + .drag-handle {
+  right: 0px;
+}
