@@ -105,11 +105,11 @@
 
 (defn f->% [f] (str (* f 100) "%"))
 
-(defn waveform [file owner]
+(defn waveform [points owner]
   (reify
     om/IRender
     (render [_]
-      (let [resolution 1000 height 100 points (:analysis file)]
+      (let [resolution 1000 height 100]
         (apply dom/svg #js {:width (f->% 1) :height (f->% 1) :viewBox (str "0 0 " resolution " " height)}
                (om/build-all
                  (fn [agg owner]
@@ -137,7 +137,7 @@
                                               [x y] (relative-coords dom e)]
                                           (om/transact! file :selection (partial swap-closest x))))}
                        (dom/div #js {:className "selection" :style (clj->js (css-offsets (:selection file)))} nil)
-                       (om/build waveform file))))))
+                       (om/build waveform (:analysis file)))))))
 
 (defn file-list [files parent]
   (reify
