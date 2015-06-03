@@ -128,30 +128,38 @@
                                           (play (:data file) (:selection file)))} "Play")
               (let [stop-drag (fn [e] (.preventDefault e) (om/set-state! owner :drag nil))]
                 (dom/div #js {:onMouseLeave stop-drag
+                              :onMouseUp stop-drag
                               :onMouseMove (fn [e]
                                              (.preventDefault e)
-                                             (when-let [{path :path start :start} (:drag state)]
-                                               (let [ dom-rect (.getBoundingClientRect (om/get-node owner))
-                                                     new-end (/ (- (+ (.-pageX e) start) (.-left dom-rect)) (.-width dom-rect))]
+                                             (when-let [{path :path click :click prev :prev} (:drag state)]
+                                               (let [ width (.. e -currentTarget getBoundingClientRect -width)
+                                                      drag-distance (/ (- (.-pageX e) click) width)
+                                                     ]
                                                  (om/transact! file [:selection]
                                                                (get-in [
-                                                                        (fn [[start, stop]] [(constrain new-end [0 stop]) stop])
-                                                                        (fn [[start, stop]] [start (constrain new-end [1 start])])
+                                                                        (fn [[start stop]] [(constrain (+ (nth prev 0) drag-distance) [0 stop]) stop])
+                                                                        (fn [[start stop]] [start (constrain (+ (nth prev 1) drag-distance) [1 start])])
+                                                                        (fn [_]
+                                                                          (map (partial + drag-distance) prev))
                                                                         ] path))))) }
-
                          (let [ drag-handle-attrs (fn [path] {:className "drag-handle"
                                                               :onMouseDown (fn [e]
                                                                              (.preventDefault e)
-                                                                             (let [ dom-rect (.. e -target getBoundingClientRect)
-                                                                                   corner-prop (get-in ["left" "right"] path)
-                                                                                   start (- (aget dom-rect corner-prop) (.-pageX e))]
-                                                                               (om/set-state! owner :drag {:start start :path path})))
-                                                              :onMouseUp stop-drag })]
+                                                                             (.stopPropagation e)
+                                                                             (om/set-state! owner :drag {:click (.-pageX e) :prev (:selection file) :path path}))})]
                            (dom/div #js {:className "selection" :draggable true
+                                         :onMouseDown (fn [e]
+                                                        (.preventDefault e)
+                                                        (om/set-state! owner :drag {:click (.-pageX e) :prev (:selection file) :path [2]}))
                                          :style (clj->js (css-offsets (:selection file))) }
                                     (dom/div (clj->js (drag-handle-attrs [0])))
                                     (dom/div (clj->js (drag-handle-attrs [1])))))
                          (om/build waveform (:analysis file))))))))
+
+(comment
+  ; reset selection on first file
+(swap! app-state update-in [:files 0] assoc :selection [0 1])
+  )
 
 (defn file-list [files parent]
   (reify
