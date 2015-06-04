@@ -70,8 +70,10 @@
 
 (defn drop-zone [_]
   (reify
+    om/IDisplayName
+    (display-name [_] "drop-zone")
     om/IRender
-    (render [this]
+    (render [_]
       (dom/div #js {
                     :id "drop-zone"
                     :onDrop (fn [e]
@@ -170,6 +172,8 @@
 
 (defn root [state parent]
   (reify
+    om/IDisplayName
+    (display-name [_] "root")
     om/IRender
     (render [_]
       (dom/main nil
