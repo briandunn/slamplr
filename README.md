@@ -37,4 +37,10 @@ Check the browser for errors. One that I get a lot is about trying to connect to
     :Piggieback!
     :Piggieback (adzerk.boot-cljs-repl/repl-env)
 
+If you get an error like
+
+    java.io.IOException: No client connected to Websocket
+
+Try refreshing your browser
+
 Maybe that worked. Try to `cpp` a line. If it doesn't print the result, check out your dev server log for exeptions. Broke huh? try redoing random steps from this list. feel frustrated. give up. try one last thing. Bet it started working right when you were to swear off the cljs sauce for keeps this time.
