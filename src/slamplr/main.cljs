@@ -129,7 +129,6 @@
               (let [stop-drag  (fn [e] (.preventDefault e) (om/set-state! owner :drag nil))
                     start-drag (fn [path]
                                  (fn [e]
-                                   (.preventDefault e)
                                    (.stopPropagation e)
                                    (om/set-state! owner :drag {:down (.-pageX e)
                                                                :prev (:selection file)
@@ -148,6 +147,7 @@
                          (dom/div #js {:className "selection"
                                        :draggable true
                                        :onMouseDown (start-drag [:center])
+                                       :onDragStart (fn [e] (print "drag!"))
                                        :style (clj->js (css-offsets (:selection file)))}
                                   (dom/div #js {:className "drag-handle" :onMouseDown (start-drag [:left])})
                                   (dom/div #js {:className "drag-handle" :onMouseDown (start-drag [:right])}))
