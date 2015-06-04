@@ -126,34 +126,31 @@
               (dom/button #js {:onClick (fn [e]
                                           (.preventDefault e)
                                           (play (:data file) (:selection file)))} "Play")
-              (let [stop-drag (fn [e] (.preventDefault e) (om/set-state! owner :drag nil))]
+              (let [stop-drag  (fn [e] (.preventDefault e) (om/set-state! owner :drag nil))
+                    start-drag (fn [path]
+                                 (fn [e]
+                                   (.preventDefault e)
+                                   (.stopPropagation e)
+                                   (om/set-state! owner :drag {:down (.-pageX e)
+                                                               :prev (:selection file)
+                                                               :path path})))]
                 (dom/div #js {:onMouseLeave stop-drag
                               :onMouseUp stop-drag
                               :onMouseMove (fn [e]
                                              (.preventDefault e)
-                                             (when-let [{path :path click :click prev :prev} (:drag state)]
-                                               (let [ width (.. e -currentTarget getBoundingClientRect -width)
-                                                      drag-distance (/ (- (.-pageX e) click) width)
-                                                     ]
+                                             (when-let [{path :path down :down prev :prev} (:drag state)]
+                                               (let [ drag-distance (/ (- (.-pageX e) down) (.. e -currentTarget -clientWidth)) ]
                                                  (om/transact! file [:selection]
-                                                               (get-in [
-                                                                        (fn [[start stop]] [(constrain (+ (nth prev 0) drag-distance) [0 stop]) stop])
-                                                                        (fn [[start stop]] [start (constrain (+ (nth prev 1) drag-distance) [1 start])])
-                                                                        (fn [_]
-                                                                          (map (partial + drag-distance) prev))
-                                                                        ] path))))) }
-                         (let [ drag-handle-attrs (fn [path] {:className "drag-handle"
-                                                              :onMouseDown (fn [e]
-                                                                             (.preventDefault e)
-                                                                             (.stopPropagation e)
-                                                                             (om/set-state! owner :drag {:click (.-pageX e) :prev (:selection file) :path path}))})]
-                           (dom/div #js {:className "selection" :draggable true
-                                         :onMouseDown (fn [e]
-                                                        (.preventDefault e)
-                                                        (om/set-state! owner :drag {:click (.-pageX e) :prev (:selection file) :path [2]}))
-                                         :style (clj->js (css-offsets (:selection file))) }
-                                    (dom/div (clj->js (drag-handle-attrs [0])))
-                                    (dom/div (clj->js (drag-handle-attrs [1])))))
+                                                               (get-in {:left   (fn [[start stop]] [(constrain (+ (nth prev 0) drag-distance) [0 stop]) stop])
+                                                                        :right  (fn [[start stop]] [start (constrain (+ (nth prev 1) drag-distance) [1 start])])
+                                                                        :center (fn [_] (map (fn [end] (constrain (+ drag-distance end) [0 1])) prev))}
+                                                                       path)))))}
+                         (dom/div #js {:className "selection"
+                                       :draggable true
+                                       :onMouseDown (start-drag [:center])
+                                       :style (clj->js (css-offsets (:selection file)))}
+                                  (dom/div #js {:className "drag-handle" :onMouseDown (start-drag [:left])})
+                                  (dom/div #js {:className "drag-handle" :onMouseDown (start-drag [:right])}))
                          (om/build waveform (:analysis file))))))))
 
 (comment
