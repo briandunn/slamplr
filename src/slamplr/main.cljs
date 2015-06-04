@@ -111,9 +111,15 @@
 (defn css-offsets [[start stop]]
   {:left (f->% start) :width (f->% (- stop start))})
 
-(defn constrain [point bounds]
-  (let [[start stop] (sort bounds)]
-    (min stop (max start point))))
+(defn constrain [point]
+    (min 1 (max 0 point)))
+
+(defn update-selection [prev drag-distance opp]
+  (let [updated (map (fn [end] (constrain (+ drag-distance end))) prev)]
+    (sort (get-in {:left   [(nth updated 0) (nth prev 1)]
+                   :right  [(nth prev 0)    (nth updated 1)]
+                   :center updated}
+                  opp))))
 
 (defn file-item [file owner]
   (reify
@@ -139,11 +145,7 @@
                                              (.preventDefault e)
                                              (when-let [{path :path down :down prev :prev} (:drag state)]
                                                (let [ drag-distance (/ (- (.-pageX e) down) (.. e -currentTarget -clientWidth)) ]
-                                                 (om/transact! file [:selection]
-                                                               (get-in {:left   (fn [[start stop]] [(constrain (+ (nth prev 0) drag-distance) [0 stop]) stop])
-                                                                        :right  (fn [[start stop]] [start (constrain (+ (nth prev 1) drag-distance) [1 start])])
-                                                                        :center (fn [_] (map (fn [end] (constrain (+ drag-distance end) [0 1])) prev))}
-                                                                       path)))))}
+                                                 (om/update! file [:selection] (update-selection prev drag-distance path)))))}
                          (dom/div #js {:className "selection"
                                        :draggable true
                                        :onMouseDown (start-drag [:center])
