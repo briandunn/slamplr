@@ -123,7 +123,7 @@
                    :center updated}
                   opp))))
 
-(defn file-item [file owner]
+(defn file-item [file owner {remove-file :remove-file}]
   (reify
     om/IDisplayName
     (display-name [_] "file-item")
@@ -134,6 +134,10 @@
               (dom/button #js {:onClick (fn [e]
                                           (.preventDefault e)
                                           (play (:data file) (:selection file)))} "Play")
+
+              (dom/button #js {:onClick (fn [e]
+                                          (.preventDefault e)
+                                          (remove-file file))} "-")
               (let [stop-drag  (fn [e] (.preventDefault e) (om/set-state! owner :drag nil))
                     start-drag (fn [path]
                                  (fn [e]
@@ -168,8 +172,9 @@
     (display-name [_] "file-list")
     om/IRender
     (render [_]
-      (apply dom/ul #js {:id "files"} (om/build-all file-item files)))))
-
+      (apply dom/ul #js {:id "files"} (om/build-all file-item files {:opts {:remove-file (fn [file]
+                                                                                           (om/transact! files (fn
+                                                                                                                 [files] (vec (remove (partial = file) files)))))}})))))
 (defn root [state parent]
   (reify
     om/IDisplayName
