@@ -27,6 +27,9 @@
   (swap! app-state update-in [:files] conj sample)
   [:files (dec (count (:files @app-state)))])
 
+(defn blank-buffer [frames]
+  (.createBuffer audio-context (.. audio-context -destination -channelCount) frames (.. audio-context -sampleRate)))
+
 (defn play
   ( [buffer]
    (let [buffer-source (.createBufferSource audio-context)]
@@ -90,6 +93,17 @@
                     :onDragOver (fn [e] (.preventDefault e) (.stopPropagation e))
                     :onDragEnter (fn [e] (.preventDefault e) (.stopPropagation e))
                     } "drop files here"))))
+
+(defn add-blank [files]
+  (reify
+    om/IDisplayName
+    (display-name [_] "add-blank")
+    om/IRender
+    (render [_]
+      (dom/button #js {:onClick (fn [e]
+                                  (.preventDefault e)
+                                  (om/transact! files (fn [files] (conj files {:name "blank" :data (blank-buffer 1) :selection [0 1]}))))
+                       } "+"))))
 
 (defn scale [points width height]
   (let [
@@ -188,6 +202,7 @@
     (render [_]
       (dom/main nil
                 (om/build drop-zone nil)
+                (om/build add-blank (:files state))
                 (om/build file-list (:files state))))))
 
 (om/root root app-state
