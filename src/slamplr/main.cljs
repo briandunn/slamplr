@@ -9,6 +9,7 @@
 
 (defonce file-chan (chan 10))
 (defonce sample-chan (chan 10))
+(defonce remove-chan (chan 10))
 
 (comment
   {:files [{
@@ -61,6 +62,11 @@
         (let [path (add-sample! sample)]
           (swap! app-state update-in path assoc :analysis (analyze (:data sample)))
           (recur)))))
+
+(go (loop []
+      (when-let [file (<! remove-chan)]
+        (swap! app-state update-in [:files] (fn [files] (vec (remove (partial = file) files)))))
+      (recur)))
 
 (go
   (loop []
@@ -123,7 +129,7 @@
                    :center updated}
                   opp))))
 
-(defn file-item [file owner {remove-file :remove-file}]
+(defn file-item [file owner]
   (reify
     om/IDisplayName
     (display-name [_] "file-item")
@@ -137,7 +143,8 @@
 
               (dom/button #js {:onClick (fn [e]
                                           (.preventDefault e)
-                                          (remove-file file))} "-")
+                                          (.stopPropagation e)
+                                          (put! remove-chan file))} "-")
               (let [stop-drag  (fn [e] (.preventDefault e) (om/set-state! owner :drag nil))
                     start-drag (fn [path]
                                  (fn [e]
@@ -172,9 +179,7 @@
     (display-name [_] "file-list")
     om/IRender
     (render [_]
-      (apply dom/ul #js {:id "files"} (om/build-all file-item files {:opts {:remove-file (fn [file]
-                                                                                           (om/transact! files (fn
-                                                                                                                 [files] (vec (remove (partial = file) files)))))}})))))
+      (apply dom/ul #js {:id "files"} (om/build-all file-item files)))))
 (defn root [state parent]
   (reify
     om/IDisplayName
