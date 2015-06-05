@@ -134,7 +134,7 @@
   {:left (f->% start) :width (f->% (- stop start))})
 
 (defn constrain [point]
-    (min 1 (max 0 point)))
+  (min 1 (max 0 point)))
 
 (defn update-selection [prev drag-distance opp]
   (let [updated (map (fn [end] (constrain (+ drag-distance end))) prev)]
@@ -168,17 +168,19 @@
                                                                :path path})))]
                 (dom/div #js {:onMouseLeave stop-drag
                               :onMouseUp stop-drag
-                              :onDrop (fn [e] (print "drop!"))
+                              :onDrop (fn [e]
+                                        (put! (om/get-shared owner [:chans :drop]) {:dest file :pos (/ (.-screenX e) (.. e -currentTarget -clientWidth))}))
                               :onDragOver (fn [e] (.preventDefault e))
                               :onMouseMove (fn [e]
                                              (.preventDefault e)
                                              (when-let [{path :path down :down prev :prev} (:drag state)]
                                                (let [ drag-distance (/ (- (.-pageX e) down) (.. e -currentTarget -clientWidth)) ]
-                                                 (om/update! file [:selection] (update-selection prev drag-distance path)))))}
+                                                 (om/update! file :selection (update-selection prev drag-distance path)))))}
                          (dom/div #js {:className "selection"
                                        :draggable true
                                        :onMouseDown (start-drag [:center])
-                                       :onDragStart (fn [e] (print "drag!"))
+                                       :onDragStart  (fn [e] (put! (om/get-shared owner [:chans :drag]) file))
+                                       :onDragCancel (fn [e] (put! (om/get-shared owner [:chans :drag-cancel]) true))
                                        :style (clj->js (css-offsets (:selection file)))}
                                   (dom/div #js {:className "drag-handle" :onMouseDown (start-drag [:left])})
                                   (dom/div #js {:className "drag-handle" :onMouseDown (start-drag [:right])}))
@@ -186,8 +188,12 @@
 
 (comment
   ; reset selection on first file
-(swap! app-state update-in [:files 0] assoc :selection [0 1])
+  (swap! app-state update-in [:files 0] assoc :selection [0 1])
   )
+
+(defn merge-selection [dest pos src]
+  (print "merge selection" {:pos pos :dest dest :src src})
+  (assoc src :name "merged!"))
 
 (defn file-list [files parent]
   (reify
@@ -196,6 +202,7 @@
     om/IRender
     (render [_]
       (apply dom/ul #js {:id "files"} (om/build-all file-item files)))))
+
 (defn root [state parent]
   (reify
     om/IDisplayName
@@ -207,8 +214,24 @@
                 (om/build add-blank (:files state))
                 (om/build file-list (:files state))))))
 
-(om/root root app-state
-         {:target (. js/document (getElementById "app"))})
+(defn index-of [col x]
+  (some identity (map (fn [e i] (and (= e x) i)) col (range))))
+
+(let [drop-chan (chan)
+      drag-chan (chan)
+      drag-cancel-chan (chan)]
+  (go (loop []
+        (when-let [src (<! drag-chan)]
+          (let [[{:keys [dest pos]} c] (async/alts! [drop-chan drag-cancel-chan])]
+            (when (= c drop-chan)
+              (let [files (:files @app-state)]
+                (swap! app-state update-in [:files (index-of files dest)] (partial merge-selection dest pos))))
+            (recur)))))
+  (om/root root app-state
+           {:target (. js/document (getElementById "app"))
+            :shared {:chans {:drop drop-chan
+                             :drag drag-chan
+                             :drag-cancel drag-cancel-chan} }}))
 
 (deftype FileList [l i]
   ISeqable
