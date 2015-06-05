@@ -7,10 +7,6 @@
 
 (enable-console-print!)
 
-(defonce file-chan (chan 10))
-(defonce sample-chan (chan 10))
-(defonce remove-chan (chan 10))
-
 (comment
   {:files [{
             :data []
@@ -50,7 +46,7 @@
        (aset dest i (aget src (+ start i))))
      (play slice-buffer))))
 
-(defn load-into-file-buffer [file]
+(defn load-into-file-buffer [file sample-chan]
   (let [reader (js/FileReader.)]
     (set! (.-onload reader) (fn [e]
                               (.decodeAudioData audio-context (.. reader -result) (fn [audio-data]
@@ -60,24 +56,7 @@
 (defn analyze [sample]
   (.getChannelData sample 0))
 
-(go (loop []
-      (when-let [sample (<! sample-chan)]
-        (let [path (add-sample! sample)]
-          (swap! app-state update-in path assoc :analysis (analyze (:data sample)))
-          (recur)))))
-
-(go (loop []
-      (when-let [file (<! remove-chan)]
-        (swap! app-state update-in [:files] (fn [files] (vec (remove (partial = file) files)))))
-      (recur)))
-
-(go
-  (loop []
-    (when-let [file (<! file-chan)]
-      (load-into-file-buffer file)
-      (recur))))
-
-(defn drop-zone [_]
+(defn drop-zone [_ owner]
   (reify
     om/IDisplayName
     (display-name [_] "drop-zone")
@@ -89,7 +68,7 @@
                               (.preventDefault e)
                               (.stopPropagation e)
                               (doseq [file (.. e -dataTransfer -files)]
-                                (put! file-chan file)))
+                                (put! (om/get-shared owner [:chans :file]) file)))
                     :onDragOver (fn [e] (.preventDefault e) (.stopPropagation e))
                     :onDragEnter (fn [e] (.preventDefault e) (.stopPropagation e))
                     } "drop files here"))))
@@ -158,7 +137,7 @@
               (dom/button #js {:onClick (fn [e]
                                           (.preventDefault e)
                                           (.stopPropagation e)
-                                          (put! remove-chan file))} "-")
+                                          (put! (om/get-shared owner [:chans :remove]) file))} "-")
               (let [stop-drag  (fn [e] (.preventDefault e) (om/set-state! owner :drag nil))
                     start-drag (fn [path]
                                  (fn [e]
@@ -219,7 +198,10 @@
 
 (let [drop-chan (chan)
       drag-chan (chan)
-      drag-cancel-chan (chan)]
+      drag-cancel-chan (chan)
+      file-chan (chan)
+      sample-chan (chan)
+      remove-chan (chan)]
   (go (loop []
         (when-let [src (<! drag-chan)]
           (let [[{:keys [dest pos]} c] (async/alts! [drop-chan drag-cancel-chan])]
@@ -227,11 +209,26 @@
               (let [files (:files @app-state)]
                 (swap! app-state update-in [:files (index-of files dest)] (partial merge-selection dest pos))))
             (recur)))))
+  (go (loop []
+        (when-let [sample (<! sample-chan)]
+          (let [path (add-sample! sample)]
+            (swap! app-state update-in path assoc :analysis (analyze (:data sample)))
+            (recur)))))
+  (go (loop []
+        (when-let [file (<! remove-chan)]
+          (swap! app-state update-in [:files] (fn [files] (vec (remove (partial = file) files)))))
+        (recur)))
+  (go (loop []
+      (when-let [file (<! file-chan)]
+        (load-into-file-buffer file sample-chan)
+        (recur))))
   (om/root root app-state
            {:target (. js/document (getElementById "app"))
             :shared {:chans {:drop drop-chan
                              :drag drag-chan
-                             :drag-cancel drag-cancel-chan} }}))
+                             :drag-cancel drag-cancel-chan
+                             :file file-chan
+                             :remove remove-chan}}}))
 
 (deftype FileList [l i]
   ISeqable
