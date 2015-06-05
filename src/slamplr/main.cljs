@@ -26,15 +26,27 @@
 (defn blank-buffer [frames]
   (.createBuffer audio-context (.. audio-context -destination -channelCount) frames (.. audio-context -sampleRate)))
 
+(defn analyze [sample]
+  (.getChannelData sample 0))
+
+(defn merge-buffer! [srcb destb offset length]
+  (let [dest (analyze destb)
+        src  (analyze srcb)]
+    (doseq [i (range length)]
+      (aset dest i (aget src (+ offset i))))
+    destb))
+
 (defn copy-buffer
   ([buffer] (copy-buffer buffer 0 (.-length buffer)))
   ([buffer offset length]
-   (let [copy (.createBuffer audio-context (.-numberOfChannels buffer) length (.-sampleRate buffer))
-         dest (.getChannelData copy 0)
-         src (.getChannelData buffer 0)]
-     (doseq [i (range length)]
-       (aset dest i (aget src (+ offset i))))
-     copy)))
+   (let [copy (.createBuffer audio-context (.-numberOfChannels buffer) length (.-sampleRate buffer))]
+     (merge-buffer! buffer copy offset length))))
+
+(defn selection->buffer [buffer selection]
+  (let [slice-range (map #(Math/round (* (.-length buffer) %)) selection)
+        slice-length (reduce - (reverse slice-range))
+        slice-offset (first slice-range)]
+    (copy-buffer buffer slice-offset slice-length)))
 
 (defn play
   ([buffer]
@@ -44,12 +56,15 @@
                (.start buffer-source 0))))
 
   ([buffer selection]
-   (let [
-         slice-range (map #(Math/round (* (.-length buffer) %)) selection)
-         slice-length (reduce - (reverse slice-range))
-         slice-offset (first slice-range)
-         new-buf (copy-buffer buffer slice-offset slice-length)]
-     (play new-buf))))
+     (play (selection->buffer buffer selection))))
+
+(defn merge-files [dest pos src]
+  (let [
+        src (selection->buffer (:data src) (:selection src))
+        dest-buffer (copy-buffer (:data dest))
+        offset (Math/round (* (.-length dest-buffer) pos))]
+    (.copyToChannel dest-buffer (analyze src) 0 offset)
+    (assoc dest :data dest-buffer :analysis (analyze dest-buffer))))
 
 (defn load-into-file-buffer [file sample-chan]
   (let [reader (js/FileReader.)]
@@ -57,9 +72,6 @@
                               (.decodeAudioData audio-context (.. reader -result) (fn [audio-data]
                                                                                     (put! sample-chan {:name (.. file -name) :data audio-data :selection [0 1]})))))
     (.readAsArrayBuffer reader file)))
-
-(defn analyze [sample]
-  (.getChannelData sample 0))
 
 (defn drop-zone [_ owner]
   (reify
@@ -175,10 +187,6 @@
   (swap! app-state update-in [:files 0] assoc :selection [0 1])
   )
 
-(defn merge-selection [dest pos src]
-  (print "merge selection" {:pos pos :dest dest :src src})
-  (assoc src :name "merged!"))
-
 (defn file-list [files parent]
   (reify
     om/IDisplayName
@@ -212,7 +220,8 @@
           (let [[{:keys [dest pos]} c] (async/alts! [drop-chan drag-cancel-chan])]
             (when (= c drop-chan)
               (let [files (:files @app-state)]
-                (swap! app-state update-in [:files (index-of files dest)] (partial merge-selection dest pos))))
+                (swap! app-state update-in [:files (index-of files dest)]
+                       #(merge-files % pos src))))
             (recur)))))
   (go (loop []
         (when-let [sample (<! sample-chan)]
