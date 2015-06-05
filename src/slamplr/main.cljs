@@ -26,25 +26,30 @@
 (defn blank-buffer [frames]
   (.createBuffer audio-context (.. audio-context -destination -channelCount) frames (.. audio-context -sampleRate)))
 
+(defn copy-buffer
+  ([buffer] (copy-buffer buffer 0 (.-length buffer)))
+  ([buffer offset length]
+   (let [copy (.createBuffer audio-context (.-numberOfChannels buffer) length (.-sampleRate buffer))
+         dest (.getChannelData copy 0)
+         src (.getChannelData buffer 0)]
+     (doseq [i (range length)]
+       (aset dest i (aget src (+ offset i))))
+     copy)))
+
 (defn play
-  ( [buffer]
+  ([buffer]
    (let [buffer-source (.createBufferSource audio-context)]
      (set! (.-buffer buffer-source) buffer)
      (.connect buffer-source (.. audio-context -destination)
                (.start buffer-source 0))))
 
-  ( [buffer selection]
+  ([buffer selection]
    (let [
          slice-range (map #(Math/round (* (.-length buffer) %)) selection)
          slice-length (reduce - (reverse slice-range))
-         slice-buffer (.createBuffer audio-context (.-numberOfChannels buffer) slice-length (.-sampleRate buffer))
-         start (first slice-range)
-         dest (.getChannelData slice-buffer 0)
-         src (.getChannelData buffer 0)
-         ]
-     (doseq [i (range slice-length)]
-       (aset dest i (aget src (+ start i))))
-     (play slice-buffer))))
+         slice-offset (first slice-range)
+         new-buf (copy-buffer buffer slice-offset slice-length)]
+     (play new-buf))))
 
 (defn load-into-file-buffer [file sample-chan]
   (let [reader (js/FileReader.)]
