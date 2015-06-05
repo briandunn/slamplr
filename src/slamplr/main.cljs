@@ -168,6 +168,8 @@
                                                                :path path})))]
                 (dom/div #js {:onMouseLeave stop-drag
                               :onMouseUp stop-drag
+                              :onDrop (fn [e] (print "drop!"))
+                              :onDragOver (fn [e] (.preventDefault e))
                               :onMouseMove (fn [e]
                                              (.preventDefault e)
                                              (when-let [{path :path down :down prev :prev} (:drag state)]
