@@ -1,5 +1,4 @@
 ; vim: set ft=clojure:
-; :dependencies '[[adzerk/boot-cljs      "0.0-2727-0" :scope "test"]
 (set-env!
   :source-paths   #{"src"}
   :resource-paths #{"html"}

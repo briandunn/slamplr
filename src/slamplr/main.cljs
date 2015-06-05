@@ -219,8 +219,6 @@
   (-next [_] (if (< (inc i) (.. l -length))
                (FileList. l (inc i))
                nil)))
-(+ 1 1)
-
 (extend-protocol ISeqable
   js/Float32Array
   (-seq [array] (IndexedSeq. array 0))
